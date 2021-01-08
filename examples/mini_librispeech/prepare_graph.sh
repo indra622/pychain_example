@@ -9,6 +9,7 @@ set -e -o pipefail
 stage=0
 train_set=train_clean_5
 valid_set=dev_clean_2
+combine_set=all
 rootdir=data
 
 langdir=data/lang
@@ -22,13 +23,18 @@ nj=10
 . ./cmd.sh
 . ./utils/parse_options.sh
 
-lang=$langdir/lang_${type}${unit}_e2e
+lang=${langdir}_${type}${unit}_e2e
 graph=$graphdir/${type}${unit}
 
 if [ $stage -le 0 ]; then
   echo "$0: Stage 0: Phone LM estimating"
-  rm -rf $lang
-  cp -r $langdir/lang_nosp $lang
+  
+	if [ -f $lang ];then 
+		rm -rf $lang
+	fi
+	
+	utils/combine_data.sh $rootdir/$combine_set $rootdir/train_clean_5 $rootdir/dev_clean_2
+	cp -r $langdir $lang
   silphonelist=$(cat $lang/phones/silence.csl) || exit 1;
   nonsilphonelist=$(cat $lang/phones/nonsilence.csl) || exit 1;
   # Use our special topology... note that later on may have to tune this
@@ -38,10 +44,10 @@ if [ $stage -le 0 ]; then
   echo "Estimating a phone language model for the denominator graph..."
   mkdir -p $graph/log
   $train_cmd $graph/log/make_phone_lm.log \
-             cat $rootdir/$train_set/text \| \
+             cat $rootdir/$combine_set/text \| \
              steps/nnet3/chain/e2e/text_to_phones.py --between-silprob 0.1 \
-             $langdir/lang_nosp \| \
-             utils/sym2int.pl -f 2- $langdir/lang_nosp/phones.txt \| \
+             ${langdir} \| \
+             utils/sym2int.pl -f 2- $langdir/phones.txt \| \
              chain-est-phone-lm --num-extra-lm-states=2000 \
              ark:- $graph/phone_lm.fst
 fi
@@ -56,7 +62,7 @@ if [ $stage -le 1 ]; then
   prepare_e2e.sh --nj $nj --cmd "$train_cmd" \
 		 --type $type_arg \
 		 --shared-phones true \
-		 $rootdir/$train_set $lang $graph
+		 $rootdir/$combine_set $lang $graph
   echo "Making denominator graph..."
   $train_cmd $graph/log/make_den_fst.log \
 	     chain-make-den-fst $graph/tree $graph/0.trans_mdl \
@@ -87,8 +93,8 @@ fi
 if [ $stage -le 3 ]; then
   echo "Making HCLG full graph..."
   utils/lang/check_phones_compatible.sh \
-    $langdir/lang_nosp_test_tgsmall/phones.txt $lang/phones.txt
+    ${langdir}_nosp_test_tgsmall/phones.txt $lang/phones.txt
   utils/mkgraph.sh \
-    --self-loop-scale 1.0 $langdir/lang_nosp_test_tgsmall \
+    --self-loop-scale 1.0 data/lang_nosp_test_tgsmall \
     $graph $graph/graph_tgsmall || exit 1;
 fi
