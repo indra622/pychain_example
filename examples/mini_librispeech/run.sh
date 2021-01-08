@@ -32,7 +32,7 @@ unit=phone # phone/char
 type=mono # mono/bi
 
 affix=
-stage=0
+stage=-1
 . ./path.sh
 . ./utils/parse_options.sh
 
@@ -89,9 +89,9 @@ if [ $stage -le 3 ]; then
 		     --valid_set $valid_set \
 		     --rootdir $rootdir \
 		     --graphdir $graphdir \
-		     --langdir $langdir \
+		     --langdir ${langdir}_nosp \
 		     --type $type \
-		     --unit $unit
+		     --unit $unit  
 fi
 
 if [ ${stage} -le 4 ]; then
@@ -134,7 +134,7 @@ if [ ${stage} -le 5 ]; then
   opts=""
   mkdir -p $dir/logs
   log_file=$dir/logs/train.log
-  python3 train.py
+  python3 $MAIN_ROOT/train.py \
     --train data/train_${type}${unit}.json \
     --valid data/valid_${type}${unit}.json \
     --den-fst $graph/normalization.fst \
@@ -157,7 +157,7 @@ if [ ${stage} -le 6 ]; then
   log_file=$dir/logs/dump_$test_set.log
   result_file=$test_set/posteriors.ark
   mkdir -p $dir/$test_set
-  python3 test.py \
+  python3 $MAIN_ROOT/test.py \
 	  --test data/valid_${type}${unit}.json \
 	 --model model_best.pth.tar \
 	 --results $result_file \
@@ -179,8 +179,8 @@ fi
 
 if [  $stage -le 8 ]; then
   echo "Stage 8: Forthgram LM rescoring"
-  oldlang=$langdir/lang_nosp_test_tgsmall
-  newlang=$langdir/lang_nosp_test_tglarge
+  oldlang=${langdir}_nosp_test_tgsmall
+  newlang=${langdir}_nosp_test_tglarge
   oldlm=$oldlang/G.fst
   newlm=$newlang/G.carpa
   oldlmcommand="fstproject --project_output=true $oldlm |"

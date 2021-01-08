@@ -9,6 +9,7 @@ set -e -o pipefail
 stage=0
 train_set=train_si284
 valid_set=test_dev935
+combine_set=all
 rootdir=data
 
 langdir=data/lang
@@ -28,6 +29,7 @@ graph=$graphdir/${type}${unit}
 if [ $stage -le 0 ]; then
   echo "$0: Stage 0: Phone LM estimating"
   rm -rf $lang
+	./utils/combine_data.sh $rootdir/$combine_set $rootdir/$train_set $rootdir/$valid_set
   cp -r $langdir/$unit/lang_${unit} $lang
   silphonelist=$(cat $lang/phones/silence.csl) || exit 1;
   nonsilphonelist=$(cat $lang/phones/nonsilence.csl) || exit 1;
@@ -38,7 +40,7 @@ if [ $stage -le 0 ]; then
   echo "Estimating a phone language model for the denominator graph..."
   mkdir -p $graph/log
   $train_cmd $graph/log/make_phone_lm.log \
-             cat $rootdir/$train_set/text \| \
+             cat $rootdir/$combine_set/text \| \
              steps/nnet3/chain/e2e/text_to_phones.py --between-silprob 0.1 \
              $langdir/$unit/lang_$unit \| \
              utils/sym2int.pl -f 2- $langdir/$unit/lang_$unit/phones.txt \| \
@@ -56,7 +58,7 @@ if [ $stage -le 1 ]; then
   prepare_e2e.sh --nj $nj --cmd "$train_cmd" \
 		 --type $type_arg \
 		 --shared-phones true \
-		 $rootdir/$train_set $lang $graph
+		 $rootdir/$combine_set $lang $graph
   echo "Making denominator graph..."
   $train_cmd $graph/log/make_den_fst.log \
 	     chain-make-den-fst $graph/tree $graph/0.trans_mdl \

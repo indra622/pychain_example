@@ -137,7 +137,7 @@ if [ ${stage} -le 5 ]; then
   opts=""
   mkdir -p $dir/logs
   log_file=$dir/logs/train.log
-  python3 train.py \
+  python3 $MAIN_ROOT/train.py \
     --train data/train_${type}${unit}.json \
     --valid data/valid_${type}${unit}.json \
     --den-fst $graph/normalization.fst \
@@ -160,7 +160,7 @@ if [ ${stage} -le 6 ]; then
   log_file=$dir/logs/dump_$test_set.log
   result_file=$test_set/posteriors.ark
   mkdir -p $dir/$test_set
-  python3 test.py \
+  python3 $MAIN_ROOT/test.py \
 	  --test data/test_${type}${unit}.json \
 	  --model model_best.pth.tar \
 	  --results $result_file \
